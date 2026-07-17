@@ -1,17 +1,104 @@
-getgenv().debugando = true
-task.delay(3, function() -- changes if you want to make the debugging longer or shorter
-    getgenv().debugando = false
+
+local a={
+modules={},
+cache={}
+}
+
+local function resolve_path(b,c)
+
+if not c:find"^%."then
+return c
+end
+
+local d={}
+for e in b:gmatch"[^/]+"do
+table.insert(d,e)
+end
+
+for e in c:gmatch"[^/]+"do
+if e==".."then
+if#d>0 then table.remove(d)end
+elseif e~="."then
+table.insert(d,e)
+end
+end
+return table.concat(d,"/")
+end
+
+a.require=function(b,c)
+local d=b:match"^(.*)/[^/]+$"or""
+local e=resolve_path(d,c)
+
+local f=e
+if not a.modules[f]then
+if a.modules[f..".lua"]then
+f=f..".lua"
+elseif a.modules[f.."/init.lua"]then
+f=f.."/init.lua"
+elseif a.modules[f..".luau"]then
+f=f..".luau"
+end
+end
+
+if a.cache[f]then
+return a.cache[f]
+end
+
+local g=a.modules[f]
+if not g then
+
+local h,i=pcall(require,c)
+if h then
+return i
+else
+error("Epsilon cannot resolve module: '"..tostring(c).."' (resolved to: '"..tostring(f).."'). Error: "..tostring(i))
+end
+end
+
+local h={exports={}}
+local i=function(i)
+return a.require(f,i)
+end
+
+a.cache[f]=h.exports
+local j=g(i,h,h.exports)
+if j~=nil then
+h.exports=j
+a.cache[f]=j
+end
+return h.exports
+end
+
+a.modules["main.lua"]=function(b,c,d)
+getgenv().debugando=true
+task.delay(3,function()
+getgenv().debugando=false
 end)
-local old
-old = hookfunction(getrenv().getfenv, function(...)
-    if getgenv().debugando then
-        for i = 3, 20 do
-            local func = debug.info(i, "f")
-            if not func then continue end
-            if not islclosure(func) then continue end
-            print(i, func, debug.info(i, "snl"))
-        end
-    end
-    return old(task.wait(9e9)) -- ALWAYS return task.wait(9e9) or THE CORRECT _ENV not the exploit ENV
+local e
+e=hookfunction(getrenv().getfenv,function(...)
+if getgenv().debugando then
+for f=3,20 do
+local g=debug.info(f,"f")
+if not g then continue end
+if not islclosure(g)then continue end
+print(f,g,debug.info(f,"snl"))
+end
+end
+return e(task.wait(9e9))
 end)
-end)
+end
+
+a.modules["utils/math.lua"]=function(b,c,d)
+
+local e={}
+
+
+function e.add(f,g)
+return f+g
+end
+
+return e
+
+end
+
+return a.require("","main.lua")
