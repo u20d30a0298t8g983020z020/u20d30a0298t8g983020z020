@@ -448,7 +448,7 @@ local function IsValidTarget(Player)
 end
 
 local function GetSelectedTarget()
-    if not SilentAimConfig.Enabled and not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight then
+    if not SilentAimConfig.Enabled then
         return nil
     end
     Camera = Workspace.CurrentCamera or Camera
@@ -500,7 +500,8 @@ local function HideTargetVisuals()
 end
 
 local function UpdateTargetVisuals()
-    if not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight then
+    if not SilentAimConfig.Enabled
+        or (not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight) then
         HideTargetVisuals()
         return
     end
@@ -549,7 +550,7 @@ local function HideFOV()
 end
 
 local function UpdateFOV()
-    if not FOVConfig.Draw then
+    if not SilentAimConfig.Enabled or not FOVConfig.Draw then
         HideFOV()
         return
     end
