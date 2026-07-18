@@ -8,7 +8,7 @@ print("</>")
 task.wait(0.5)
 
 local LoadStart = os.clock()
-local repo = "https://raw.githubusercontent.com/f3a8d1c7e4b9a2f6/UIs/main/"
+local repo = "https://raw.githubusercontent.com/f3a8d1c7e4b9a2f6/UI s/main/"
 local function LoadModule(localPath, remoteName)
     if typeof(readfile) == "function" and isfile(localPath) then
         return loadstring(readfile(localPath))()
