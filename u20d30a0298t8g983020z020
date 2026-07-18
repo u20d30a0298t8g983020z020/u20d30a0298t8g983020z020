@@ -242,7 +242,6 @@ if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
             end
         end)
     end
-end
 
 if AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR ~= true then
     return
