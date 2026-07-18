@@ -1,11 +1,11 @@
-print("<?>")
-pcall(function()
--- Type 3: Loadstring spy protect for loadstring line : 304
-do
-    local AntiTamperEnv = getgenv()
+-- Anti-tamper validation must finish before the main script is loaded.
+local AntiTamperEnv = getgenv()
+if AntiTamperEnv.valary_loaded then
+    return
+end
 
-    if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
-        AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED = true
+if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
+    AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED = true
 
         local _pcall = pcall
         local _type = type
@@ -222,12 +222,17 @@ do
             return false
         end
 
-        task.spawn(function()
-            if DetectLoadstringSpy() then
-                PunishLoadstringSpy()
-                return
-            end
+        -- Validate synchronously before allowing the normal loader to run.
+        if DetectLoadstringSpy() then
+            AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR = false
+            PunishLoadstringSpy()
+            return
+        end
 
+        AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR = true
+
+        -- Continue monitoring after the initial validation.
+        task.spawn(function()
             while not AntiTamperEnv.__ZALSTORE_LOADSTRING_SPY_PUNISHED do
                 task.wait(5)
                 if DetectLoadstringSpy() then
@@ -238,16 +243,18 @@ do
         end)
     end
 end
-    
-loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
-end)
-print("</>")
 
-if getgenv().valary_loaded then
+if AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR ~= true then
     return
 end
 
-getgenv().valary_loaded = true
+AntiTamperEnv.valary_loaded = true
+
+print("<?>")
+pcall(function()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
+end)
+print("</>")
 
 if LPH_OBFUSCATED == nil then
     local assert = assert
