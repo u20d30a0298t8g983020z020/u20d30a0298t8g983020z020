@@ -622,6 +622,107 @@ end)
 
 setreadonly(game_metatable, true)
 
+-- Keep the expanded local hitbox out of the hit payload sent by the client
+-- network wrapper. This is intentionally guarded because the wrapper and
+-- gun functions can differ between game revisions.
+do
+    local NetworkModule
+    local NetworkLoaded = pcall(function()
+        NetworkModule = require(LocalPlayer.PlayerScripts["Client.Initializer"].SharedModules.Network)
+    end)
+
+    if NetworkLoaded and NetworkModule and type(NetworkModule.FireServer) == "function" and hookfunction then
+        local OldNetworkFireServer
+        OldNetworkFireServer = hookfunction(NetworkModule.FireServer, newcclosure(function(Self, ...)
+            local Arguments = {...}
+
+            if Mouse.Target
+                and Mouse.Target.Name == "Head"
+                and LocalPlayer.Character
+                and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local Gun = nil
+
+                pcall(function()
+                    Gun = Config and Config.GetGun and Config.GetGun()
+                end)
+
+                if not Gun then
+                    pcall(function()
+                        Gun = GetGun and GetGun()
+                    end)
+                end
+
+                if Gun and Self and Self.Name == "InflictTarget" then
+                    local FirePoint = Gun:FindFirstChild("Handle")
+                        and Gun.Handle:FindFirstChild("GunFirePoint")
+
+                    if FirePoint then
+                        local Direction = (
+                            LocalPlayer.Character.HumanoidRootPart.Position
+                            - FirePoint.WorldPosition
+                        ).Unit
+
+                        Arguments[3] = Mouse.Target
+                        Arguments[4] = Mouse.Target.Position
+                        Arguments[5] = Direction
+                        Arguments[6] = Vector3.new(
+                            1.1542654037475586,
+                            1.1710413694381714,
+                            1.1542654037475586
+                        )
+                    end
+                end
+            end
+
+            return OldNetworkFireServer(Self, unpack(Arguments))
+        end))
+    end
+end
+
+-- Match the local gun-position calculation to the enlarged head when the
+-- game exposes its Get3DPosition helper.
+do
+    local Get3DPosition
+
+    if getgc and debug and debug.getinfo and hookfunction then
+        for _, Value in next, getgc(true) do
+            if typeof(Value) == "function" then
+                local Info = debug.getinfo(Value)
+                if Info
+                    and Info.name == "Get3DPosition"
+                    and tostring(Info.source):find("GunScript_Local") then
+                    Get3DPosition = Value
+                    break
+                end
+            end
+        end
+    end
+
+    if Get3DPosition then
+        local OldGet3DPosition
+        OldGet3DPosition = hookfunction(Get3DPosition, newcclosure(function(...)
+            local Arguments = {...}
+
+            if HitboxConfig.Enabled and Mouse.Target and Mouse.Target.Name == "Head" then
+                local Result, OnScreen = Camera:WorldToScreenPoint(Mouse.Target.Position)
+                if OnScreen then
+                    Arguments[1] = {X = Result.X, Y = Result.Y}
+                end
+            elseif SilentConfig.Enabled and Target and Target.Character then
+                local RootPart = Target.Character:FindFirstChild("HumanoidRootPart")
+                if RootPart then
+                    local Result, OnScreen = Camera:WorldToScreenPoint(RootPart.Position)
+                    if OnScreen then
+                        Arguments[1] = {X = Result.X, Y = Result.Y}
+                    end
+                end
+            end
+
+            return OldGet3DPosition(unpack(Arguments))
+        end))
+    end
+end
+
 RunService.RenderStepped:Connect(function()
     local CurrentTarget = GetSelectedTarget()
 
