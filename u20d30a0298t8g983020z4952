@@ -1,104 +1,722 @@
 print("<...>")
-local Players             = cloneref(game:GetService("Players")) or game:GetService("Players")
-local ReplicatedStorage   = cloneref(game:GetService("ReplicatedStorage")) or game:GetService("ReplicatedStorage")
-local MemoryStoreService  = cloneref(game:GetService("MemoryStoreService")) or game:GetService("MemoryStoreService")
-local Workspace           = game:GetService("Workspace")
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
 
 print("</>")
 
-task.wait(0.5)
 
-local LoadStart = os.clock()
-local repo = "https://raw.githubusercontent.com/f3a8d1c7e4b9a2f6/UIs/main/"
-local function LoadModule(localPath, remoteName)
-    if typeof(readfile) == "function" and isfile(localPath) then
-        return loadstring(readfile(localPath))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/NIcoGabrielRealYtr/lds13-Library/refs/heads/main/Source"))()
+Library.Theme.Accent = Color3.fromHex("#4169E1")
+
+local function formatTime(seconds)
+    if not seconds or seconds == math.huge then
+        return "Lifetime"
     end
-    return loadstring(game:HttpGet(repo .. remoteName))()
+    
+    local days = math.floor(seconds / 86400)
+    local hours = math.floor((seconds % 86400) / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = math.floor(seconds % 60)
+    
+    if days > 0 then
+        return string.format("%dd %dh %dm %ds", days, hours, minutes, secs)
+    else
+        return string.format("%dh %dm %ds", hours, minutes, secs)
+    end
 end
 
-local Library = LoadModule("Library.lua", "Library.lua")
-local ThemeManager = LoadModule("theme manager.lua", "ThemeManager.lua")
-local SaveManager = LoadModule("savemanager.lua", "SaveManager.lua")
+local HttpService = game:GetService("HttpService")
 
-local Options = Library.Options
-local Toggles = Library.Toggles
+local function updateDiscordProfile(Window, discordID)
+    if not discordID or discordID == "0" or discordID == "" then
+        return
+    end
 
+    task.spawn(function()
+        local success, response = pcall(function()
+            return game:HttpGet("https://discord-lookup-api-neon.vercel.app/v1/user/" .. discordID)
+        end)
+        
+        if success and response then
+            local data = HttpService:JSONDecode(response)
+            if data and data.global_name then
+                if Window.Items and Window.Items["Username"] then
+                    Window.Items["Username"].Instance.Text = data.global_name
+                end
+                
+                if data.avatar and data.avatar.link then
+                    local ext = data.avatar.is_animated and ".gif" or ".png"
+                    local filePath = "lds13/Assets/Profiles/" .. discordID .. ext
+                    
+                    if not isfolder("lds13/Assets") then makefolder("lds13/Assets") end
+                    if not isfolder("lds13/Assets/Profiles") then makefolder("lds13/Assets/Profiles") end
+                    
+                    local dlSuccess, imgData = pcall(function()
+                        return game:HttpGet(data.avatar.link)
+                    end)
+                    
+                    if dlSuccess and imgData then
+                        writefile(filePath, imgData)
+                        if Window.Items and Window.Items["AvatarIcon"] then
+                            Window.Items["AvatarIcon"].Instance.Image = getcustomasset(filePath)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local secondsLeft = LRM_SecondsLeft or math.huge
+
+local Window = Library:Window({
+    Name = "ZalStore",
+    SubTitle = "South Bronx",
+    TimeRemaining = formatTime(secondsLeft)
+})
+
+Window.Items["Title"].Instance.RichText = true
+Window.Items["Title"].Instance.Text = 'Zal<font color="#3385ff">Store</font>'
+
+updateDiscordProfile(Window, LRM_LinkedDiscordID or "0")
+
+if secondsLeft and secondsLeft ~= math.huge then
+    task.spawn(function()
+        while secondsLeft > 0 do
+            task.wait(1)
+            secondsLeft = secondsLeft - 1
+            if Window.Items and Window.Items["TimeRemaining"] then
+                Window.Items["TimeRemaining"].Instance.Text = "Time remaining: " .. formatTime(secondsLeft)
+            else
+                break
+            end
+        end
+        if secondsLeft <= 0 and Window.Items and Window.Items["TimeRemaining"] then
+            Window.Items["TimeRemaining"].Instance.Text = "Time remaining: Key Expired!"
+        end
+    end)
+end
+
+-- FrameWork
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local Camera = Workspace.CurrentCamera
 
-Library.ForceCheckbox = false
-Library.ShowToggleFrameInKeybinds = true
-Library.ShowCustomCursor = false
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Device_Mobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled)
 
-local ExecutorName = (type(getexecutorname) == "function" and getexecutorname() or "Executor")
-local Window = Library:CreateWindow({
-    Title = "ZalStore",
-    TitleAccent = "Store",
-    Footer = string.format("Zal<font color=\"#%s\">Store</font> | %s", Library.Scheme.AccentColor:ToHex(), ExecutorName),
-    FooterRichText = true,
-    NotifySide = "Right",
-    ShowCustomCursor = false,
-    AutoShow = true,
-    CornerRadius = 3,
-    Size = UDim2.fromOffset(670, 520),
-})
 
-local MainTab = Window:AddTab("Player", "user")
-local SettingsTab = Window:AddTab("Settings", "settings")
+local TargetSelector = {
+    Targetting = false,
+    UseFOV = false,
+    HealthCheck = false,
+    Health = 5,
+    VisibleCheck = false,
+    LimitDistance = false,
+    MaxDistance = 350,
+    FriendCheck = false,
+    ProtectedCheck = false,
+}
 
-local SilentAimConfig = {
+local VisualConfig = {
+    FOVColor = Color3.new(1, 1, 1),
+    FOVTransparency = 0,
+    SnaplineColor = Color3.new(1, 1, 1),
+    SnaplineTransparency = 0,
+    SnaplineThickness = 1,
+    HighlightColor = Color3.fromRGB(255, 0, 0),
+    HighlightTransparency = 0.6,
+    Draw_Snapline = false,
+    Draw_FOV = false,
+}
+
+local HitboxConfig = {
     Enabled = false,
-    Wallbang = false,
+    Multiplier = 5,
+    SafeZoneCheck = false,
+    Color = Color3.new(1,1,1),
+    Transparency = 0.75,
+    Material = "ForceField",
+    Part = "Head"
+}
+
+local ESPConfig = {
+    Enabled = false,
+    Boxes = false,
+    Names = false,
+    Healthbar = false,
+    Distance = false,
+    Weapon = false,
+    RenderDistance = 500,
+    Color = Color3.fromRGB(184, 212, 255),
+    BoxColor = Color3.fromRGB(184, 212, 255),
+    NameColor = Color3.fromRGB(184, 212, 255),
+    DistanceColor = Color3.fromRGB(184, 212, 255),
+    WeaponColor = Color3.fromRGB(184, 212, 255),
+}
+
+local SilentConfig = {
+    Enabled = false,
+    WallBang = false,
     HitChance = 100,
-    HitParts = { "Head" },
+    HitParts = {"Head", "HumanoidRootPart", "LeftUpperLeg", "RightUpperLeg"},
 }
 
-local FOVConfig = {
-    Enabled = false,
-    Radius = 10,
-    Sides = 100,
-    Draw = false,
-}
+local Friends = {}
 
-local TargetVisualConfig = {
-    Snapline = false,
-    Highlight = false,
-}
 
-local SilentAimBox = MainTab:AddLeftGroupbox("Silent Aim", "crosshair")
-SilentAimBox:AddToggle("SilentAimEnabled", {
-    Text = "Silent Aim",
-    Default = false,
-    Callback = function(Value)
-        SilentAimConfig.Enabled = Value
-    end,
+local function InsideSafezone(Player)
+    if not Player or not Player.Character or not Player.Character:FindFirstChild("HumanoidRootPart") then
+        return true
+    end
+
+    local Safezones = Workspace:FindFirstChild("Map")
+    if not Safezones then return false end
+    Safezones = Safezones:FindFirstChild("Safezones")
+    if not Safezones then return false end
+
+    for _, Zone in pairs(Safezones:GetChildren()) do
+        if Zone:IsA("BasePart") then
+            local Relative_Position = Zone.CFrame:PointToObjectSpace(Player.Character.HumanoidRootPart.Position)
+
+            if math.abs(Relative_Position.X) <= Zone.Size.X/2 and
+               math.abs(Relative_Position.Y) <= Zone.Size.Y/2 and
+               math.abs(Relative_Position.Z) <= Zone.Size.Z/2 then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+local function WallCheck(Character)
+    local Origin = Camera.CFrame.Position
+    local Position = Character.Head.Position
+    local Parameters = RaycastParams.new()
+
+    Parameters.FilterDescendantsInstances = { LocalPlayer.Character, Camera, Character }
+    Parameters.FilterType = Enum.RaycastFilterType.Blacklist
+    Parameters.IgnoreWater = true
+
+    return not Workspace:Raycast(Origin, Position - Origin, Parameters)
+end
+
+local function DistanceCheck(Player, Distance)
+    if not Player then return false end
+    if not Player.Character or not LocalPlayer.Character then return false end
+
+    local TargetRootPart = Player.Character:FindFirstChild("HumanoidRootPart")
+    local LocalRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+    if LocalRootPart and TargetRootPart then
+        local Magnitude = (LocalRootPart.Position - TargetRootPart.Position).Magnitude
+        return Distance > Magnitude
+    end
+
+    return false
+end
+
+local CheckPlayer = function(Plr)
+    if Plr == LocalPlayer then return end
+    if LocalPlayer:IsFriendsWith(Plr.UserId) and not table.find(Friends, Plr.Name) then
+        table.insert(Friends, Plr.Name)
+    end
+end
+
+Players.PlayerAdded:Connect(CheckPlayer)
+for _, Value in Players:GetPlayers() do
+    CheckPlayer(Value)
+end
+
+local DefaultPlayerSettings = {}
+local OriginalHeadSizes = {}
+local OriginalCanCollide = {}
+
+local ConnectHitboxToPlayer = function(Player)
+    task.spawn(function()
+        while (Player ~= nil) and task.wait(0.25) do
+            if not Player.Character then continue end
+            if Player.Character then
+                if not Player.Character:FindFirstChild("HumanoidRootPart") or not Player.Character:FindFirstChild("Humanoid") then
+                    continue
+                end
+
+                if not Player.Character:FindFirstChild("Head") or not Player.Character:FindFirstChild("Humanoid") then
+                    continue
+                end
+
+                local HumanoidRootPart, Head, Humanoid = Player.Character:FindFirstChild("HumanoidRootPart"), Player.Character:FindFirstChild("Head"), Player.Character:FindFirstChild("Humanoid")
+
+                if Humanoid.Sit and not DefaultPlayerSettings[Player.Name] then continue end
+
+                if not DefaultPlayerSettings[Player.Name] then
+                    DefaultPlayerSettings[Player.Name] = {}
+                    DefaultPlayerSettings[Player.Name].HeadSettings = {}
+
+                    DefaultPlayerSettings[Player.Name].HeadSettings.Size = Head.Size
+                    DefaultPlayerSettings[Player.Name].HeadSettings.Color = Head.Color
+                    DefaultPlayerSettings[Player.Name].HeadSettings.Transparency = Head.Transparency
+                    DefaultPlayerSettings[Player.Name].HeadSettings.Material = Head.Material
+                    OriginalHeadSizes[Head] = Head.Size
+                    OriginalCanCollide[Head] = Head.CanCollide
+                end
+
+                if not HitboxConfig.Enabled or Humanoid.Sit or Humanoid.Health == 0 or table.find(Friends, Player.Name) then
+                    Head.Massless = true
+                    Head.CanCollide = true
+
+                    for Index, Value in DefaultPlayerSettings[Player.Name].HeadSettings do
+                        Head[Index] = Value
+                    end
+
+                    continue
+                end
+
+                if not HitboxConfig.Enabled and not Humanoid.Sit then
+                    Head.Massless = false
+                    Head.CanCollide = true
+
+                    for Index, Value in DefaultPlayerSettings[Player.Name].HeadSettings do
+                        Head[Index] = Value
+                    end
+
+                    continue
+                end
+
+                if HitboxConfig.SafeZoneCheck and InsideSafezone(Player) then
+                    Head.Massless = true
+                    Head.CanCollide = true
+
+                    for Index, Value in DefaultPlayerSettings[Player.Name].HeadSettings do
+                        Head[Index] = Value
+                    end
+
+                    continue
+                end
+
+                if HitboxConfig.Enabled and Humanoid.Health ~= 0 then
+                    Head.Size = Vector3.new(HitboxConfig.Multiplier, HitboxConfig.Multiplier, HitboxConfig.Multiplier)
+                    Head.Transparency = HitboxConfig.Transparency
+                    Head.Material = Enum.Material[HitboxConfig.Material]
+                    Head.Color = HitboxConfig.Color
+                    Head.CanCollide = false
+                    Head.Massless = true
+                end
+            end
+        end
+    end)
+end
+
+for Index, Value in Players:GetPlayers() do
+    if Value == LocalPlayer then continue end
+    ConnectHitboxToPlayer(Value)
+end
+
+Players.PlayerAdded:Connect(function(Value)
+    ConnectHitboxToPlayer(Value)
+end)
+
+local ESPObjects = {}
+
+local function NewESPObject(Class, Properties)
+    local Object = Drawing.new(Class)
+    for Index, Value in pairs(Properties) do
+        Object[Index] = Value
+    end
+    return Object
+end
+
+local function CreateESP(Player)
+    if ESPObjects[Player] then return ESPObjects[Player] end
+
+    local Object = {
+        Box = {},
+        Name = NewESPObject("Text", {Visible = false, Center = true, Outline = true, Size = 13, Color = ESPConfig.Color}),
+        Distance = NewESPObject("Text", {Visible = false, Center = true, Outline = true, Size = 13, Color = ESPConfig.Color}),
+        Weapon = NewESPObject("Text", {Visible = false, Center = true, Outline = true, Size = 13, Color = ESPConfig.Color}),
+        Health = NewESPObject("Line", {Visible = false, Thickness = 2, Color = Color3.fromRGB(0, 255, 0)}),
+        HealthOutline = NewESPObject("Line", {Visible = false, Thickness = 4, Color = Color3.new(0, 0, 0)}),
+    }
+
+    for Index = 1, 4 do
+        Object.Box[Index] = NewESPObject("Line", {Visible = false, Thickness = 1, Color = ESPConfig.Color})
+    end
+
+    ESPObjects[Player] = Object
+    return Object
+end
+
+local function HideESP(Object)
+    for _, Line in pairs(Object.Box) do Line.Visible = false end
+    Object.Name.Visible = false
+    Object.Distance.Visible = false
+    Object.Weapon.Visible = false
+    Object.Health.Visible = false
+    Object.HealthOutline.Visible = false
+end
+
+local function RemoveESP(Player)
+    local Object = ESPObjects[Player]
+    if not Object then return end
+    HideESP(Object)
+    for _, Line in pairs(Object.Box) do Line:Remove() end
+    Object.Name:Remove()
+    Object.Distance:Remove()
+    Object.Weapon:Remove()
+    Object.Health:Remove()
+    Object.HealthOutline:Remove()
+    ESPObjects[Player] = nil
+end
+
+for _, Player in ipairs(Players:GetPlayers()) do
+    if Player ~= LocalPlayer then CreateESP(Player) end
+end
+
+Players.PlayerAdded:Connect(function(Player)
+    if Player ~= LocalPlayer then CreateESP(Player) end
+end)
+
+Players.PlayerRemoving:Connect(RemoveESP)
+
+RunService:BindToRenderStep("SilentAimESP", 1, function()
+    for Player, Object in pairs(ESPObjects) do
+        HideESP(Object)
+
+        if not ESPConfig.Enabled or table.find(Friends, Player.Name) then continue end
+
+        local Character = Player.Character
+        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+        local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+        local Head = Character and Character:FindFirstChild("Head")
+        if not Humanoid or not Root or not Head or Humanoid.Health <= 0 then continue end
+
+        local Distance = (Camera.CFrame.Position - Root.Position).Magnitude
+        if Distance > ESPConfig.RenderDistance then continue end
+
+        local Top, TopVisible = Camera:WorldToViewportPoint(Head.Position + Vector3.new(0, 0.5, 0))
+        local Bottom, BottomVisible = Camera:WorldToViewportPoint(Root.Position - Vector3.new(0, 3, 0))
+        if not TopVisible and not BottomVisible then continue end
+
+        local Height = math.abs(Bottom.Y - Top.Y)
+        if Height < 2 then continue end
+        local Width = Height * 0.55
+        local Left, Right = Top.X - Width / 2, Top.X + Width / 2
+        local TopY, BottomY = Top.Y, Bottom.Y
+
+        if ESPConfig.Boxes then
+            Object.Box[1].From, Object.Box[1].To = Vector2.new(Left, TopY), Vector2.new(Right, TopY)
+            Object.Box[2].From, Object.Box[2].To = Vector2.new(Right, TopY), Vector2.new(Right, BottomY)
+            Object.Box[3].From, Object.Box[3].To = Vector2.new(Right, BottomY), Vector2.new(Left, BottomY)
+            Object.Box[4].From, Object.Box[4].To = Vector2.new(Left, BottomY), Vector2.new(Left, TopY)
+            for _, Line in pairs(Object.Box) do Line.Color, Line.Visible = ESPConfig.BoxColor, true end
+        end
+
+        if ESPConfig.Names then
+            Object.Name.Text = Player.DisplayName or Player.Name
+            Object.Name.Position = Vector2.new(Top.X, TopY - 16)
+            Object.Name.Color, Object.Name.Visible = ESPConfig.NameColor, true
+        end
+
+        if ESPConfig.Distance then
+            Object.Distance.Text = string.format("[%dm]", math.floor(Distance))
+            Object.Distance.Position = Vector2.new(Top.X, BottomY + 2)
+            Object.Distance.Color, Object.Distance.Visible = ESPConfig.DistanceColor, true
+        end
+
+        if ESPConfig.Weapon then
+            local Tool = Character:FindFirstChildOfClass("Tool")
+            if Tool then
+                Object.Weapon.Text = "[" .. Tool.Name .. "]"
+                Object.Weapon.Position = Vector2.new(Top.X, BottomY + (ESPConfig.Distance and 17 or 2))
+                Object.Weapon.Color, Object.Weapon.Visible = ESPConfig.WeaponColor, true
+            end
+        end
+
+        if ESPConfig.Healthbar then
+            local Ratio = math.clamp(Humanoid.Health / math.max(Humanoid.MaxHealth, 1), 0, 1)
+            local X = Left - 5
+            Object.HealthOutline.From, Object.HealthOutline.To = Vector2.new(X, BottomY), Vector2.new(X, TopY)
+            Object.Health.From, Object.Health.To = Vector2.new(X, BottomY), Vector2.new(X, BottomY - Height * Ratio)
+            Object.Health.Color = Color3.fromRGB(255 - math.floor(255 * Ratio), math.floor(255 * Ratio), 0)
+            Object.HealthOutline.Visible, Object.Health.Visible = true, true
+        end
+    end
+end)
+
+local Target = nil
+
+local Center_Of_Screen = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+RunService:BindToRenderStep("Center_Of_Screen", 0, function()
+    Center_Of_Screen = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+end)
+
+local function GetSelectedTarget()
+    if Device_Mobile then
+        TargetSelector.Targetting = SilentConfig.Enabled
+    end
+
+    if not SilentConfig.Enabled and not VisualConfig.Draw_Snapline then
+        Target = nil
+        return nil
+    end
+
+    local PlayersList = Players:GetPlayers()
+    local MouseLocation = Device_Mobile and Center_Of_Screen or UserInputService:GetMouseLocation()
+    local Radius = TargetSelector.UseFOV and (Library.Flags["FieldOfView_Radius"] or 25) * 10 or math.huge
+
+    local ClosestPlayer = nil
+    local ClosestDistance = math.huge
+
+    for _, Player in ipairs(PlayersList) do
+        if Player == LocalPlayer then continue end
+        if table.find(Friends, Player.Name) then continue end
+
+        local Character = Player.Character
+        if not Character then continue end
+
+        local Humanoid = Character:FindFirstChild("Humanoid")
+        local Head = Character:FindFirstChild("Head")
+
+        if not Humanoid or not Head or Humanoid.Health <= 0 then continue end
+
+        -- Use WorldToViewportPoint so it aligns properly with GetMouseLocation()
+        local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Head.Position)
+        if not OnScreen then continue end
+
+        local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - MouseLocation).Magnitude
+        if Distance > Radius then continue end
+
+        if TargetSelector.VisibleCheck and not SilentConfig.WallBang then
+            if not WallCheck(Character) then continue end
+        end
+
+        if TargetSelector.HealthCheck and Humanoid.Health < TargetSelector.Health then continue end
+        if TargetSelector.FriendCheck and table.find(Friends, Player.Name) then continue end
+        if TargetSelector.LimitDistance and not DistanceCheck(Player, TargetSelector.MaxDistance) then continue end
+        if TargetSelector.ProtectedCheck and InsideSafezone(Player) then continue end
+
+        if Distance < ClosestDistance then
+            ClosestDistance = Distance
+            ClosestPlayer = Player
+        end
+    end
+
+    Target = ClosestPlayer
+    return Target
+end
+
+local Draw = function(Class, Properties)
+    local D = Drawing.new(Class)
+    for Index, Value in Properties do
+        D[Index] = Value
+    end
+    return D
+end
+
+local FieldOfViewOutline = Draw("Circle", {Visible = false, Color = Color3.new(0, 0, 0), Radius = 250, NumSides = 50, Thickness = 4})
+local FieldOfView = Draw("Circle", {Visible = false, Color = Color3.new(1, 1, 1), Radius = 250, NumSides = 50, Thickness = 2})
+local FieldOfViewFill = Draw("Circle", {Visible = false, Color = Color3.new(1, 1, 1), Radius = 250, NumSides = 50, Thickness = 2, Filled = true, Transparency = 0.5})
+
+local SnaplineOutline = Draw("Line", {Visible = false, Color = Color3.new(0, 0, 0), Thickness = 3})
+local Snapline = Draw("Line", {Visible = false, Color = Color3.new(1, 1, 1), Thickness = 1})
+
+local Target_Highlight = Instance.new("Highlight", gethui())
+Target_Highlight.FillColor = Color3.fromRGB(255, 0, 0)
+Target_Highlight.OutlineColor = Color3.new(1, 1, 1)
+Target_Highlight.FillTransparency = 0.6
+Target_Highlight.OutlineTransparency = 1
+Target_Highlight.Enabled = true
+
+local FindFirstChild = Workspace.FindFirstChild
+
+local game_metatable = getrawmetatable(game)
+setreadonly(game_metatable, false)
+
+local __index_hook = game_metatable.__index
+local __namecall_hook = game_metatable.__namecall
+
+game_metatable.__index = newcclosure(function(Self, Index)
+    if typeof(Self) == "Instance" then
+        if Index == "Size" and Self.Name == "Head" and OriginalHeadSizes[Self] then
+            return OriginalHeadSizes[Self]
+        end
+
+        if Index == "CanCollide" and OriginalCanCollide[Self] ~= nil then
+            return OriginalCanCollide[Self]
+        end
+    end
+
+    return __index_hook(Self, Index)
+end)
+
+game_metatable.__namecall = newcclosure(function(Self, ...)
+    local Arguments = {...}
+    local Method = getnamecallmethod()
+
+    if Method == "Raycast" and SilentConfig.Enabled then
+        if checkcaller() then
+            return __namecall_hook(Self, ...)
+        end
+
+        local Script = getcallingscript()
+
+        if Script and Script.Name:find("?") then
+            return __namecall_hook(Self, ...)
+        end
+
+        local Traceback = debug.traceback()
+
+        if Traceback:find("Move") then
+            return __namecall_hook(Self, ...)
+        end
+
+        if Traceback:find("MouseHover") then
+            return __namecall_hook(Self, ...)
+        end
+
+        if Traceback:find("isWallInFront") then 
+            return __namecall_hook(Self, ...)
+        end
+        
+        if SilentConfig.Enabled then
+            if not (math.random(0, 100) <= SilentConfig.HitChance) then
+                return __namecall_hook(Self, ...)
+            end
+
+            local TargetPart
+
+            if Target and Target.Character then
+                TargetPart = FindFirstChild(Target.Character, SilentConfig.HitParts[1] and SilentConfig.HitParts[math.random(1, #SilentConfig.HitParts)] or "Head")
+
+                if not TargetPart then
+                    return __namecall_hook(Self, ...)
+                end
+
+                local Origin = Arguments[1]
+                if typeof(Origin) ~= "Vector3" then
+                    return __namecall_hook(Self, ...)
+                end
+                local Direction = (TargetPart.Position - Origin).Unit * 1000
+                
+                Arguments[2] = Direction
+            end
+
+            if SilentConfig.WallBang and Target and Target.Character and TargetPart then
+                return {
+                    Instance = TargetPart,
+                    Position = TargetPart.Position,
+                    Distance = (TargetPart.Position - Arguments[1]).Magnitude,
+                    Material = Enum.Material.SmoothPlastic,
+                    Normal = Vector3.zero,
+                }
+            end
+
+            return __namecall_hook(Self, unpack(Arguments))
+        end
+    end
+
+    return __namecall_hook(Self, ...)
+end)
+
+setreadonly(game_metatable, true)
+
+RunService.RenderStepped:Connect(function()
+    local CurrentTarget = GetSelectedTarget()
+
+    local ClientPosition = Device_Mobile and Center_Of_Screen or UserInputService:GetMouseLocation()
+    
+    local DrawFOV = VisualConfig.Draw_FOV
+    local Radius = (Library.Flags["FieldOfView_Radius"] or 25) * 10
+    local Sides = Library.Flags["FieldOfView_Sides"] or 50
+    
+    FieldOfView.Visible = DrawFOV
+    FieldOfView.Radius = Radius
+    FieldOfView.Color = VisualConfig.FOVColor
+    FieldOfView.NumSides = Sides
+    FieldOfView.Position = ClientPosition
+
+    FieldOfViewOutline.Visible = DrawFOV
+    FieldOfViewOutline.Radius = Radius
+    FieldOfViewOutline.NumSides = Sides
+    FieldOfViewOutline.Position = ClientPosition
+
+    FieldOfViewFill.Visible = false
+    
+    if CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("Head") then
+        local PlayerPosition, OnScreen = Camera:WorldToViewportPoint(CurrentTarget.Character.Head.Position)
+        
+        if OnScreen and VisualConfig.Draw_Snapline then
+            Snapline.Visible = true
+            Snapline.Color = VisualConfig.SnaplineColor
+            Snapline.Thickness = VisualConfig.SnaplineThickness
+            Snapline.From = ClientPosition
+            Snapline.To = Vector2.new(PlayerPosition.X, PlayerPosition.Y)
+
+            SnaplineOutline.Visible = true
+            SnaplineOutline.Thickness = VisualConfig.SnaplineThickness + 2
+            SnaplineOutline.From = Snapline.From
+            SnaplineOutline.To = Snapline.To
+        else
+            Snapline.Visible = false
+            SnaplineOutline.Visible = false
+        end
+        
+        if Library.Flags["Highlight_Target"] then
+            Target_Highlight.Adornee = CurrentTarget.Character
+            Target_Highlight.FillColor = VisualConfig.HighlightColor
+            Target_Highlight.FillTransparency = VisualConfig.HighlightTransparency
+        else
+            Target_Highlight.Adornee = nil
+        end
+    else
+        Snapline.Visible = false
+        SnaplineOutline.Visible = false
+        Target_Highlight.Adornee = nil
+    end
+end)
+
+-- Pages
+local CombatPage = Window:Page({
+    Icon = "131145598162617",
+    Columns = 2
 })
 
-SilentAimBox:AddToggle("SilentAimWallbang", {
-    Text = "Wallbang",
-    Default = false,
-    Callback = function(Value)
-        SilentAimConfig.Wallbang = Value
-    end,
+
+local VisualsPage = Window:Page({
+    Icon = "131145598162617",
+    Columns = 2
 })
 
-SilentAimBox:AddSlider("SilentAimHitChance", {
-    Text = "Hit Chance",
-    Default = 100,
-    Min = 0,
-    Max = 100,
-    Rounding = 0,
-    Suffix = "%",
-    Callback = function(Value)
-        SilentAimConfig.HitChance = Value
-    end,
+local PlayerPage = Window:Page({
+    Icon = "131145598162617",
+    Columns = 2
 })
 
-SilentAimBox:AddDropdown("SilentAimHitParts", {
-    Text = "Hit Parts",
-    Values = {
+-- Combat page
+local SilentAim_Section = CombatPage:Section({Name = "Silent Aimbot", Icon = "131145598162617", Side = 1})
+
+SilentAim_Section:Toggle({Name = "Enabled", Flag = "SilentAim_Enabled", Default = false, Callback = function(State)
+    SilentConfig.Enabled = State
+    TargetSelector.Targetting = State
+end})
+            
+SilentAim_Section:Toggle({Name = "Wall Bang", Flag = "SilentAim_Wallbang", Default = false, Callback = function(State)
+    SilentConfig.WallBang = State
+end})
+
+SilentAim_Section:Slider({Name="Silent Aim Hit Chance",Suffix = "%",Flag="SilentAim_HitChance",Default=100,Min=0,Max=100,Callback=function(State)
+    SilentConfig.HitChance = State
+end})
+
+SilentAim_Section:Dropdown({
+    Name = "Select Hit Parts",
+    Flag = "SilentAim_HitParts",
+    Items = {
         "Head",
         "UpperTorso",
         "LowerTorso",
@@ -110,461 +728,209 @@ SilentAimBox:AddDropdown("SilentAimHitParts", {
         "LeftLowerLeg",
         "RightUpperLeg",
         "RightLowerLeg",
-        "HumanoidRootPart",
+        "HumanoidRootPart"
     },
-    Default = { "Head" },
+    Default = {"Head"},
     Multi = true,
-    Callback = function(Value)
-        SilentAimConfig.HitParts = type(Value) == "table" and Value or { Value }
-    end,
+    MaxSize = 200,
+    Callback = function(State)
+        SilentConfig.HitParts = State
+    end
 })
 
-local FOVBox = MainTab:AddRightGroupbox("Field Of View", "scan-eye")
-FOVBox:AddToggle("FieldOfViewEnabled", {
-    Text = "Use Field Of View",
+local Field_OfView_Section = CombatPage:Section({Name = "Field Of View Settings", Icon = "131145598162617", Side = 2})
+
+Field_OfView_Section:Toggle({Name="Use Field Of View",Flag="FieldOfView_Enabled",Default=false,Callback=function(State)
+    TargetSelector.UseFOV = State
+end})
+
+Field_OfView_Section:Slider({Name="Field Of View Radius",Flag="FieldOfView_Radius",Default=10, Suffix = "°", Min=0,Max=100,Decimals=1,Callback=function(State) end})
+
+Field_OfView_Section:Slider({Name="Field Of View Sides",Flag="FieldOfView_Sides", Suffix = "°", Default=100,Min=3,Max=100,Callback=function(State) end})
+
+Field_OfView_Section:Toggle({Name="Draw Field Of View",Flag="FieldOfView_Drawed",Default=false,Callback=function(State)
+    VisualConfig.Draw_FOV = State
+end}):Colorpicker({Name="Field Of View Color",Default=Color3.new(1,1,1),Alpha=0,Callback=function(Color,Transparency)
+    VisualConfig.FOVColor = Color
+    VisualConfig.FOVTransparency = Transparency
+end})
+
+local SelectedTarget_Settings = CombatPage:Section({Name = "Selected Target Settings", Icon = "131145598162617", Side = 2})
+
+SelectedTarget_Settings:Toggle({Name="Draw Snapline",Flag="Draw_Snapline",Default=false,Callback=function(State)
+    VisualConfig.Draw_Snapline = State
+end}):Colorpicker({Name="Snapline Color",Default = Color3.new(1,1,1), Alpha=0,Callback=function(Color,Transparency)
+    VisualConfig.SnaplineColor = Color
+    VisualConfig.SnaplineTransparency = Transparency
+end})
+
+SelectedTarget_Settings:Slider({Name="Snapline Thickness",Flag="Snapline_Thickness",Default=2,Min=1,Max=5,Callback=function(State)
+    VisualConfig.SnaplineThickness = State
+end})
+
+local _Toggle=SelectedTarget_Settings:Toggle({Name="Highlight Target",Flag="Highlight_Target",Callback=function(State) end})
+_Toggle:Colorpicker({Name="Highlight Filled Color", Default = Color3.fromRGB(255,0,0), Alpha=0.6,Callback=function(Color,Transparency)
+    VisualConfig.HighlightColor = Color
+    VisualConfig.HighlightTransparency = Transparency
+end})
+
+-- Hitbox Customization
+local HitBoxExpander_Section = CombatPage:Section({Name = "Hit-Box Customization", Icon = "131145598162617", Side = 1})
+
+HitBoxExpander_Section:Toggle({Name = "Enabled", Flag = "HitBoxes_Enabled", Default = false, Callback = function(State)
+    HitboxConfig.Enabled = State
+end})
+
+HitBoxExpander_Section:Toggle({Name = "Safe-Zone Check", Flag = "HitBoxes_SafeZoneCheck", Default = false, Callback = function(State)
+    HitboxConfig.SafeZoneCheck = State
+end})
+
+HitBoxExpander_Section:Slider({Name = "Multiplier", Flag = "HitBoxes_Multiplier", Max = 50, Min = 1, Default = 5, Suffix = "x", Callback = function(State)
+    HitboxConfig.Multiplier = State
+end})
+
+HitBoxExpander_Section:Label("Hit-Box Color"):Colorpicker({
+    Name = "Hit-Box Color",
+    Flag = "HitBoxes_Color",
+    Default = Color3.new(1,1,1),
+    Alpha = 0,
+    Callback = function(Value)
+        HitboxConfig.Color = Value
+    end
+})
+
+HitBoxExpander_Section:Slider({Name = "Hit-Box Transparency", Flag = "HitBoxes_Transparency", Min = 0, Max = 100, Default = 75, Suffix = "%", Callback = function(State)
+    HitboxConfig.Transparency = State / 100
+end})
+
+-- Visuals page
+-- The controls follow the Player ESP layout used by South Bronx Emulated.
+local ESPMainSection = VisualsPage:Section({
+    Name = "Players - Main Settings",
+    Icon = "135799335731002",
+    Side = 1
+})
+
+local ESPInfoSection = VisualsPage:Section({
+    Name = "Players - Info Labels",
+    Icon = "131145598162617",
+    Side = 2
+})
+
+ESPMainSection:Toggle({
+    Name = "Enabled",
+    Flag = "Visuals/ESP/MasterSwitch",
     Default = false,
     Callback = function(Value)
-        FOVConfig.Enabled = Value
-    end,
+        ESPConfig.Enabled = Value
+    end
 })
 
-FOVBox:AddSlider("FieldOfViewRadius", {
-    Text = "FOV Radius",
-    Default = 10,
-    Min = 0,
-    Max = 100,
-    Rounding = 1,
-    Suffix = "°",
-    Callback = function(Value)
-        FOVConfig.Radius = Value
-    end,
-})
-
-FOVBox:AddSlider("FieldOfViewSides", {
-    Text = "FOV Sides",
-    Default = 100,
-    Min = 3,
-    Max = 100,
-    Rounding = 0,
-    Callback = function(Value)
-        FOVConfig.Sides = Value
-    end,
-})
-
-FOVBox:AddToggle("FieldOfViewDraw", {
-    Text = "Draw Field Of View",
+ESPMainSection:Toggle({
+    Name = "Boxes",
+    Flag = "Visuals/ESP/Boxes",
     Default = false,
     Callback = function(Value)
-        FOVConfig.Draw = Value
-    end,
+        ESPConfig.Boxes = Value
+    end
+}):Colorpicker({
+    Name = "Box Color",
+    Flag = "Visuals/ESP/Boxes/Color",
+    Default = ESPConfig.Color,
+    Alpha = 0,
+    Callback = function(Value)
+        ESPConfig.BoxColor = Value
+    end
 })
 
-FOVBox:AddToggle("TargetSnapline", {
-    Text = "Snapline",
+ESPMainSection:Slider({
+    Name = "Max Render Distance",
+    Flag = "Visuals/ESP/MaxRenderDistance",
+    Min = 50,
+    Max = 5000,
+    Default = ESPConfig.RenderDistance,
+    Suffix = "m",
+    Decimals = 1,
+    Callback = function(Value)
+        ESPConfig.RenderDistance = Value
+    end
+})
+
+ESPInfoSection:Toggle({
+    Name = "Name",
+    Flag = "Visuals/ESP/NameText",
     Default = false,
     Callback = function(Value)
-        TargetVisualConfig.Snapline = Value
-    end,
+        ESPConfig.Names = Value
+    end
+}):Colorpicker({
+    Name = "Name Color",
+    Flag = "Visuals/ESP/NameTextColor",
+    Default = ESPConfig.Color,
+    Alpha = 0,
+    Callback = function(Value)
+        ESPConfig.NameColor = Value
+    end
 })
 
-FOVBox:AddToggle("TargetHighlight", {
-    Text = "Highlight Target",
+ESPInfoSection:Toggle({
+    Name = "Weapon",
+    Flag = "Visuals/ESP/WeaponText",
     Default = false,
     Callback = function(Value)
-        TargetVisualConfig.Highlight = Value
-    end,
-})
-
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-
-local CurrentTarget
-local FOVOutline
-local FOVCircle
-local Snapline
-local TargetHighlight
-
--- Fungsi untuk mencari fungsi berdasarkan nama di garbage collector
-local function SearchGc(FunctionName)
-    for _, v in pairs(getgc()) do
-        if type(v) == "function" then
-            local info = debug.getinfo(v)
-            if info.name == FunctionName then
-                return v
-            end
-        end
+        ESPConfig.Weapon = Value
     end
-end
-
-local CastBlacklist = SearchGc("CastBlacklist")
-local CastWhitelist = SearchGc("CastWhitelist")
-local OldCastBlacklist
-
-local function IsValidTarget(Player)
-    if not Player or Player == LocalPlayer then
-        return false
-    end
-    local Character = Player.Character
-    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-    local Head = Character and Character:FindFirstChild("Head")
-    return Humanoid and Head and Humanoid.Health > 0
-end
-
-local function GetSelectedTarget()
-    if not SilentAimConfig.Enabled and not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight then
-        return nil
-    end
-    Camera = Workspace.CurrentCamera or Camera
-    local MousePosition = UserInputService:GetMouseLocation()
-    local Radius = FOVConfig.Enabled and (FOVConfig.Radius * 10) or math.huge
-    local ClosestPlayer
-    local ClosestDistance = math.huge
-
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if IsValidTarget(Player) then
-            local Head = Player.Character.Head
-            local ScreenPosition, OnScreen = Camera:WorldToViewportPoint(Head.Position)
-            if OnScreen then
-                local Distance = (Vector2.new(ScreenPosition.X, ScreenPosition.Y) - MousePosition).Magnitude
-                if Distance <= Radius and Distance < ClosestDistance then
-                    ClosestDistance = Distance
-                    ClosestPlayer = Player
-                end
-            end
-        end
-    end
-    return ClosestPlayer
-end
-
-local function CreateTargetVisuals()
-    if typeof(Drawing) == "table" and not Snapline then
-        Snapline = Drawing.new("Line")
-        Snapline.Visible = false
-        Snapline.Color = Color3.new(1, 1, 1)
-        Snapline.Thickness = 1
-    end
-    if not TargetHighlight then
-        local Parent = gethui and gethui() or game:GetService("CoreGui")
-        TargetHighlight = Instance.new("Highlight")
-        TargetHighlight.FillColor = Color3.fromRGB(255, 0, 0)
-        TargetHighlight.FillTransparency = 0.6
-        TargetHighlight.OutlineTransparency = 1
-        TargetHighlight.Enabled = false
-        TargetHighlight.Parent = Parent
-    end
-end
-
-local function HideTargetVisuals()
-    if Snapline then Snapline.Visible = false end
-    if TargetHighlight then
-        TargetHighlight.Adornee = nil
-        TargetHighlight.Enabled = false
-    end
-end
-
-local function UpdateTargetVisuals()
-    if not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight then
-        HideTargetVisuals()
-        return
-    end
-    CreateTargetVisuals()
-    if not CurrentTarget or not CurrentTarget.Character then
-        HideTargetVisuals()
-        return
-    end
-    local Head = CurrentTarget.Character:FindFirstChild("Head")
-    if not Head then
-        HideTargetVisuals()
-        return
-    end
-    Camera = Workspace.CurrentCamera or Camera
-    local TargetPosition, OnScreen = Camera:WorldToViewportPoint(Head.Position)
-    local MousePosition = UserInputService:GetMouseLocation()
-    if Snapline then
-        Snapline.Visible = TargetVisualConfig.Snapline and OnScreen
-        Snapline.From = MousePosition
-        Snapline.To = Vector2.new(TargetPosition.X, TargetPosition.Y)
-    end
-    if TargetHighlight then
-        TargetHighlight.Adornee = TargetVisualConfig.Highlight and CurrentTarget.Character or nil
-        TargetHighlight.Enabled = TargetVisualConfig.Highlight
-    end
-end
-
-local function CreateFOVDrawings()
-    if FOVCircle or typeof(Drawing) ~= "table" then return end
-    FOVOutline = Drawing.new("Circle")
-    FOVOutline.Visible = false
-    FOVOutline.Color = Color3.new(0, 0, 0)
-    FOVOutline.Thickness = 4
-    FOVOutline.NumSides = FOVConfig.Sides
-
-    FOVCircle = Drawing.new("Circle")
-    FOVCircle.Visible = false
-    FOVCircle.Color = Color3.new(1, 1, 1)
-    FOVCircle.Thickness = 2
-    FOVCircle.NumSides = FOVConfig.Sides
-end
-
-local function HideFOV()
-    if FOVCircle then FOVCircle.Visible = false end
-    if FOVOutline then FOVOutline.Visible = false end
-end
-
-local function UpdateFOV()
-    if not FOVConfig.Draw then
-        HideFOV()
-        return
-    end
-    CreateFOVDrawings()
-    if not FOVCircle or not FOVOutline then return end
-    Camera = Workspace.CurrentCamera or Camera
-    local MousePosition = UserInputService:GetMouseLocation()
-    local Radius = FOVConfig.Radius * 10
-    FOVCircle.Visible = true
-    FOVCircle.Position = MousePosition
-    FOVCircle.Radius = Radius
-    FOVCircle.NumSides = FOVConfig.Sides
-    FOVOutline.Visible = true
-    FOVOutline.Position = MousePosition
-    FOVOutline.Radius = Radius
-    FOVOutline.NumSides = FOVConfig.Sides
-end
-
--- =====================================================================
--- BACKEND SILENT AIM & WALLBANG (Integrasi script kedua)
--- =====================================================================
-local function GetRandomHitPart(Character)
-    local parts = SilentAimConfig.HitParts
-    if #parts == 0 then return Character:FindFirstChild("Head") end
-    local tryPart = parts[math.random(1, #parts)]
-    return Character:FindFirstChild(tryPart) or Character:FindFirstChild("Head")
-end
-
-if CastBlacklist and CastWhitelist then
-    -- Hook menggunakan CastBlacklist / CastWhitelist (metode utama)
-    OldCastBlacklist = hookfunction(CastBlacklist, function(...)
-        local args = {...}
-        local Target = CurrentTarget
-        if SilentAimConfig.Enabled and Target and Target.Character then
-            if math.random(0, 100) <= SilentAimConfig.HitChance then
-                local TargetPart = GetRandomHitPart(Target.Character)
-                if TargetPart and typeof(args[1]) == "Vector3" then
-                    -- Ubah arah tembakan ke target part
-                    args[2] = TargetPart.Position - args[1]
-                    if SilentAimConfig.Wallbang then
-                        -- Wallbang: ganti tabel whitelist dengan karakter target
-                        args[3] = {Target.Character}
-                        return CastWhitelist(unpack(args))
-                    end
-                    return OldCastBlacklist(unpack(args))
-                end
-            end
-        end
-        return OldCastBlacklist(...)
-    end)
-else
-    -- Fallback: hook __namecall pada Raycast (metode generic)
-    local HookInstalled = false
-    local GameMetatable
-    local OldNamecall
-    if type(getrawmetatable) == "function" then
-        GameMetatable = getrawmetatable(game)
-        OldNamecall = GameMetatable.__namecall
-        local FindFirstChild = Workspace.FindFirstChild
-
-        setreadonly(GameMetatable, false)
-        GameMetatable.__namecall = newcclosure(function(Self, ...)
-            local Arguments = {...}
-            local Method = getnamecallmethod()
-            if Method == "Raycast" and SilentAimConfig.Enabled and not checkcaller() then
-                local Target = CurrentTarget
-                if Target and Target.Character and math.random(0, 100) <= SilentAimConfig.HitChance then
-                    local TargetPart = GetRandomHitPart(Target.Character)
-                    if TargetPart and typeof(Arguments[1]) == "Vector3" then
-                        Arguments[2] = (TargetPart.Position - Arguments[1]).Unit * 1000
-                        if SilentAimConfig.Wallbang then
-                            return {
-                                Instance = TargetPart,
-                                Position = TargetPart.Position,
-                                Distance = (TargetPart.Position - Arguments[1]).Magnitude,
-                                Material = Enum.Material.SmoothPlastic,
-                                Normal = Vector3.zero,
-                            }
-                        end
-                        return OldNamecall(Self, table.unpack(Arguments))
-                    end
-                end
-            end
-            return OldNamecall(Self, ...)
-        end)
-        setreadonly(GameMetatable, true)
-        HookInstalled = true
-
-        -- Bersihkan hook saat unload
-        local oldUnload = Library.OnUnload or function() end
-        Library.OnUnload = function(...)
-            if HookInstalled and GameMetatable then
-                setreadonly(GameMetatable, false)
-                GameMetatable.__namecall = OldNamecall
-                setreadonly(GameMetatable, true)
-            end
-            oldUnload(...)
-        end
-    end
-end
-
--- =====================================================================
--- AKHIR BACKEND
--- =====================================================================
-
-CreateFOVDrawings()
-RunService:BindToRenderStep("ZalStoreSilentAim", Enum.RenderPriority.Camera.Value + 1, function()
-    CurrentTarget = GetSelectedTarget()
-    UpdateFOV()
-    UpdateTargetVisuals()
-end)
-
-local SettingsBox = SettingsTab:AddLeftGroupbox("Menu", "menu")
-SettingsBox:AddToggle("KeybindMenuOpen", {
-    Default = Library.KeybindFrame.Visible,
-    Text = "Open Keybind Menu",
-    Callback = function(value)
-        Library.KeybindFrame.Visible = value
-    end,
-})
-
-SettingsBox:AddDropdown("NotificationSide", {
-    Values = { "Left", "Right" },
-    Default = "Right",
-    Text = "Notification Side",
+}):Colorpicker({
+    Name = "Weapon Color",
+    Flag = "Visuals/ESP/WeaponTextColor",
+    Default = ESPConfig.Color,
+    Alpha = 0,
     Callback = function(Value)
-        Library:SetNotifySide(Value)
-    end,
+        ESPConfig.WeaponColor = Value
+    end
 })
 
-SettingsBox:AddDropdown("DPIDropdown", {
-    Values = { "50%", "75%", "100%", "125%", "150%" },
-    Default = Library.IsMobile and "75%" or "100%",
-    Text = "DPI Scale",
+ESPInfoSection:Toggle({
+    Name = "Distance",
+    Flag = "Visuals/ESP/DistanceText",
+    Default = false,
     Callback = function(Value)
-        Value = Value:gsub("%%", "")
-        local DPI = tonumber(Value)
-        Library:SetDPIScale(DPI)
-    end,
-})
-
-if Library.IsMobile then
-    Library:SetDPIScale(75)
-end
-
-SettingsBox:AddToggle("MenuTransparency", {
-    Text = "Menu Transparency",
-    Default = true,
+        ESPConfig.Distance = Value
+    end
+}):Colorpicker({
+    Name = "Distance Color",
+    Flag = "Visuals/ESP/DistanceTextColor",
+    Default = ESPConfig.Color,
+    Alpha = 0,
     Callback = function(Value)
-        Library:SetTransparency(Value and 0.4 or 0)
-    end,
+        ESPConfig.DistanceColor = Value
+    end
 })
 
-SettingsBox:AddDivider()
-SettingsBox:AddLabel("Menu bind")
-    :AddKeyPicker("MenuKeybind", { Default = "RightShift", NoUI = true, Text = "Menu keybind" })
-Library.ToggleKeybind = Options.MenuKeybind
-
-SettingsBox:AddButton("Unload", function()
-    Library:Unload()
-end)
-
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
-
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
-ThemeManager:SetFolder("ZalstoreExample")
-SaveManager:SetFolder("ZalstoreExample/config")
-SaveManager:SetSubFolder("place")
-ThemeManager:ApplyToTab(SettingsTab)
-SaveManager:BuildConfigSection(SettingsTab)
-ThemeManager:LoadDefault()
-SaveManager:LoadAutoloadConfig()
-
-task.spawn(function()
-    task.wait(0.3)
-    if Toggles.MenuTransparency and Toggles.MenuTransparency.Value then
-        Library:SetTransparency(0.4)
+ESPInfoSection:Toggle({
+    Name = "Healthbar",
+    Flag = "Visuals/ESP/Healthbar",
+    Default = false,
+    Callback = function(Value)
+        ESPConfig.Healthbar = Value
     end
-end)
-
--- Animasi warna saat load (merah -> warna asli theme)
-task.spawn(function()
-    local StartColor = Color3.fromRGB(255, 65, 65)
-    local ColorKeys = {
-        "BackgroundColor", "MainColor", "AccentColor", "OutlineColor",
-        "FontColor", "Red", "Dark", "White",
-    }
-    local TargetColors = {}
-    for _, Key in ipairs(ColorKeys) do
-        if typeof(Library.Scheme[Key]) == "Color3" then
-            TargetColors[Key] = Library.Scheme[Key]
-        end
-    end
-    for Key in pairs(TargetColors) do
-        Library.Scheme[Key] = StartColor
-    end
-    Library:UpdateColorsUsingRegistry()
-
-    local Duration = 2.5
-    local Elapsed = 0
-    while Elapsed < Duration do
-        local dt = RunService.RenderStepped:Wait()
-        Elapsed += dt
-        local Alpha = math.clamp(Elapsed / Duration, 0, 1)
-        for Key, Target in pairs(TargetColors) do
-            Library.Scheme[Key] = StartColor:Lerp(Target, Alpha)
-        end
-        Library:UpdateColorsUsingRegistry()
-    end
-    for Key, Target in pairs(TargetColors) do
-        Library.Scheme[Key] = Target
-    end
-    Library:UpdateColorsUsingRegistry()
-end)
-
-Library:OnUnload(function()
-    RunService:UnbindFromRenderStep("ZalStoreSilentAim")
-    -- Hapus hook CastBlacklist jika terpasang
-    if OldCastBlacklist and CastBlacklist then
-        hookfunction(CastBlacklist, OldCastBlacklist) -- restore
-    end
-    if FOVCircle then FOVCircle:Remove() end
-    if FOVOutline then FOVOutline:Remove() end
-    if Snapline then Snapline:Remove() end
-    if TargetHighlight then TargetHighlight:Destroy() end
-    print("Zalstore example unloaded")
-end)
-
-local function PlayLoadSound()
-    pcall(function()
-        local sound = Instance.new("Sound")
-        sound.SoundId = "rbxassetid://8726881116"
-        sound.Volume = 0.8
-        sound.Looped = false
-        sound.Parent = Workspace
-        sound:Play()
-        task.delay(3, function()
-            if sound and sound.Parent then
-                sound:Destroy()
-            end
-        end)
-    end)
-end
-
-PlayLoadSound()
-Library:Notify({
-    Title = "ZalStore",
-    Description = string.format("Script loaded in: %.4f seconds.", os.clock() - LoadStart),
-    Time = 5,
 })
+
+-- Player page
+local MovementSection = PlayerPage:Section({
+    Name = "Movement",
+    Icon = "131145598162617",
+    Side = 1
+})
+
+local MenuLabel = MovementSection:Label("Menu Keybind")
+MenuLabel:Keybind({
+    Flag = "MenuKey",
+    Default = Enum.KeyCode.RightControl,
+    Mode = "Toggle",
+    Callback = function(state)
+        Window:SetOpen(state)
+    end
+})
+
+Library:CreateSettingsPage(Window)
