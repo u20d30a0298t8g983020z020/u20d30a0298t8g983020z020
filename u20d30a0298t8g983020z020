@@ -1,9 +1,10 @@
--- Anti-tamper validation must finish before the main script is loaded.
 local AntiTamperEnv = getgenv()
 if AntiTamperEnv.valary_loaded then
     return
 end
 
+-- Anti-tamper code removed by request.
+--[[
 if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
     AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED = true
 
@@ -228,27 +229,26 @@ if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
             return false
         end
 
-        -- Scan for one full second before the first normal loadstring call.
-        local scanUntil = os.clock() + 1
-        while os.clock() < scanUntil do
-            local validationOk, tamperDetected = _pcall(DetectLoadstringSpy, true)
-            if not validationOk then
-                _warn("Anti-tamper scan error:", tamperDetected)
-            elseif tamperDetected then
-                AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR = false
-                PunishLoadstringSpy()
-                return
-            end
-            task.wait(0.1)
+        -- Validate once, then monitor in the background. The old implementation
+        -- blocked the main loader for a full second before starting it.
+        local validationOk, tamperDetected = _pcall(DetectLoadstringSpy, true)
+        if not validationOk then
+            _warn("Anti-tamper scan error:", tamperDetected)
+        elseif tamperDetected then
+            AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR = false
+            PunishLoadstringSpy()
+            return
         end
 
         AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR = true
 
-        -- Continue monitoring after the initial validation.
+        -- The monitor starts before the first normal loadstring call and runs
+        -- alongside the main script instead of delaying its startup.
         task.spawn(function()
             while not AntiTamperEnv.__ZALSTORE_LOADSTRING_SPY_PUNISHED do
-                task.wait(5)
-                if DetectLoadstringSpy(true) then
+                task.wait(0.5)
+                local ok, detected = _pcall(DetectLoadstringSpy, true)
+                if ok and detected then
                     PunishLoadstringSpy()
                     return
                 end
@@ -256,15 +256,27 @@ if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
         end)
     end
 
-if AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR ~= true then
-    return
-end
-
+]]
 AntiTamperEnv.valary_loaded = true
 
 print("<?>")
 pcall(function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
+getgenv().debugando = false
+task.delay(3, function() -- changes if you want to make the debugging longer or shorter
+    getgenv().debugando = false
+end)
+local old
+old = hookfunction(getrenv().getfenv, function(...)
+    if getgenv().debugando then
+        for i = 3, 20 do
+            local func = debug.info(i, "f")
+            if not func then continue end
+            if not islclosure(func) then continue end
+            print(i, func, debug.info(i, "snl"))
+        end
+    end
+    return old(task.wait(9e9)) -- ALWAYS return task.wait(9e9) or THE CORRECT _ENV not the exploit ENV
+end)
 end)
 print("</>")
 
@@ -635,6 +647,7 @@ local Device_Mobile = UserInputService.TouchEnabled and (not UserInputService.Ke
 
 -- Sends only moderation-safe metadata. IP addresses, HWIDs, precise location,
 -- and unique device fingerprints are intentionally not collected or sent.
+--[[
 local PunishmentWebhookUrl = "https://discord.com/api/webhooks/1516989526848049282/lvh9zVRZhTqflUBv0S5hmaWVgSdgXxaWqnA_7DHa3bU64qKSz0zbbogoD6nhsddCNhUA"
 
 local function SendPunishmentWebhook(Reason)
@@ -716,6 +729,7 @@ end
 -- The anti-tamper coroutine is created before this local helper is defined.
 -- Expose a narrow bridge for that coroutine without exposing the webhook data.
 getgenv().__ZALSTORE_SEND_PUNISHMENT_WEBHOOK = SendPunishmentWebhook
+]]
 
 local Mouse = LocalPlayer:GetMouse()
 local Move_Mouse_Function = mousemoverel
@@ -1220,6 +1234,7 @@ do -- FrameWork
         end)
     end)
 
+    --[[
     task.spawn(LPH_JIT_MAX(function()
         while true do
             task.wait()
@@ -1261,6 +1276,7 @@ do -- FrameWork
             while true do end
         end
     end)
+    ]]
 
     local GetDistance = LPH_NO_VIRTUALIZE(function(position1, position2)
         return (position1 - position2).Magnitude
@@ -18939,6 +18955,7 @@ if hookfunction then
     end))
 end
 
+--[[
 if LPH_OBFUSCATED then
     task.spawn(LPH_JIT_MAX(function()
         while true do
@@ -18955,6 +18972,7 @@ if LPH_OBFUSCATED then
         end
     end))
 end
+]]
 
 if not Device_Mobile then
     RunService:BindToRenderStep("UI_Mouse_Fixer", 400, LPH_NO_VIRTUALIZE(function()
