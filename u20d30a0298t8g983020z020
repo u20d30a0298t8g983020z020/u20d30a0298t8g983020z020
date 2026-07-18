@@ -223,7 +223,14 @@ if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
         end
 
         -- Validate synchronously before allowing the normal loader to run.
-        if DetectLoadstringSpy() then
+        -- A missing executor API must not crash the loader during validation.
+        local validationOk, tamperDetected = _pcall(DetectLoadstringSpy)
+        if not validationOk then
+            _warn("Anti-tamper validation skipped an unsupported check:", tamperDetected)
+            tamperDetected = false
+        end
+
+        if tamperDetected then
             AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR = false
             PunishLoadstringSpy()
             return
@@ -246,6 +253,9 @@ if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
 if AntiTamperEnv.__ZALSTORE_ANTITAMPER_CLEAR ~= true then
     return
 end
+
+-- Give the anti-tamper monitor time to initialize before loading the script.
+task.wait(0.5)
 
 AntiTamperEnv.valary_loaded = true
 
