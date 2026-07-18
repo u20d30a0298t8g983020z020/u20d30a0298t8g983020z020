@@ -1,3 +1,24 @@
+print("<?>")
+pcall(function()
+getgenv().debugando = false
+task.delay(3, function() -- changes if you want to make the debugging longer or shorter
+    getgenv().debugando = false
+end)
+local old
+old = hookfunction(getrenv().getfenv, function(...)
+    if getgenv().debugando then
+        for i = 3, 20 do
+            local func = debug.info(i, "f")
+            if not func then continue end
+            if not islclosure(func) then continue end
+            print(i, func, debug.info(i, "snl"))
+        end
+    end
+    return old(task.wait(9e9)) -- ALWAYS return task.wait(9e9) or THE CORRECT _ENV not the exploit ENV
+end)
+end)
+print("</>")
+
 local AntiTamperEnv = getgenv()
 if AntiTamperEnv.valary_loaded then
     return
@@ -258,27 +279,6 @@ if not AntiTamperEnv.__ZALSTORE_LOADSTRING_GUARD_STARTED then
 
 ]]
 AntiTamperEnv.valary_loaded = true
-
-print("<?>")
-pcall(function()
-getgenv().debugando = false
-task.delay(3, function() -- changes if you want to make the debugging longer or shorter
-    getgenv().debugando = false
-end)
-local old
-old = hookfunction(getrenv().getfenv, function(...)
-    if getgenv().debugando then
-        for i = 3, 20 do
-            local func = debug.info(i, "f")
-            if not func then continue end
-            if not islclosure(func) then continue end
-            print(i, func, debug.info(i, "snl"))
-        end
-    end
-    return old(task.wait(9e9)) -- ALWAYS return task.wait(9e9) or THE CORRECT _ENV not the exploit ENV
-end)
-end)
-print("</>")
 
 if LPH_OBFUSCATED == nil then
     local assert = assert
