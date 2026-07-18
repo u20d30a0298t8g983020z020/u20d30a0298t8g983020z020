@@ -1,4 +1,4 @@
-getgenv().debugando = false
+getgenv().debugando = true
 task.delay(3, function() -- changes if you want to make the debugging longer or shorter
     getgenv().debugando = false
 end)
