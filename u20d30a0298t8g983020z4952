@@ -1,8 +1,17 @@
-print("<?>")
+print("<...>")
+local Players             = cloneref(game:GetService("Players")) or game:GetService("Players")
+local ReplicatedStorage   = cloneref(game:GetService("ReplicatedStorage")) or game:GetService("ReplicatedStorage")
+local MemoryStoreService  = cloneref(game:GetService("MemoryStoreService")) or game:GetService("MemoryStoreService")
+local Workspace           = game:GetService("Workspace")
+
 loadstring(game:HttpGet("https://raw.githubusercontent.com/u20d30a0298t8g983020z020/u20d30a0298t8g983020z020/refs/heads/main/u20d30a0298t8g9ff02039"))()
+
 print("</>")
+
+task.wait(0.5)
+
 local LoadStart = os.clock()
-local repo = "https://raw.githubusercontent.com/f3a8d1c7e4b9a2f6/UI s/main/"
+local repo = "https://raw.githubusercontent.com/f3a8d1c7e4b9a2f6/UIs/main/"
 local function LoadModule(localPath, remoteName)
     if typeof(readfile) == "function" and isfile(localPath) then
         return loadstring(readfile(localPath))()
@@ -205,7 +214,7 @@ local function IsValidTarget(Player)
 end
 
 local function GetSelectedTarget()
-    if not SilentAimConfig.Enabled then
+    if not SilentAimConfig.Enabled and not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight then
         return nil
     end
     Camera = Workspace.CurrentCamera or Camera
@@ -257,8 +266,7 @@ local function HideTargetVisuals()
 end
 
 local function UpdateTargetVisuals()
-    if not SilentAimConfig.Enabled
-        or (not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight) then
+    if not TargetVisualConfig.Snapline and not TargetVisualConfig.Highlight then
         HideTargetVisuals()
         return
     end
@@ -307,7 +315,7 @@ local function HideFOV()
 end
 
 local function UpdateFOV()
-    if not SilentAimConfig.Enabled or not FOVConfig.Draw then
+    if not FOVConfig.Draw then
         HideFOV()
         return
     end
